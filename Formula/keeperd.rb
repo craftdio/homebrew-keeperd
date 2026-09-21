@@ -1,8 +1,8 @@
 class Keeperd < Formula
   desc "Local ERD synchronization CLI for KeepERD"
   homepage "https://github.com/craftdio/keeperd"
-  url "https://github.com/craftdio/keeperd/releases/download/v0.1.1/keeperd-v0.1.1.tar.gz"
-  sha256 "3e050d51913e7f1b962e0050bec99a3e5554b453f3a0f0f9be62596445b6ec66"
+  url "https://github.com/craftdio/keeperd/releases/download/v0.1.2/keeperd-v0.1.2.tar.gz"
+  sha256 "cba24178e6bc8290da82455b686150c5d575e49dea2424e6e1db2fe40bfab6c9"
   license "AGPL-3.0-only"
 
   depends_on "gh"
