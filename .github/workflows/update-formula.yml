@@ -25,50 +25,76 @@ jobs:
             exit 1
           fi
 
-  update:
+  validate:
     needs: authorize
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the release and prepare the Formula
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: ./scripts/update-formula.sh "$VERSION"
+
+      - name: Install and test the Formula on macOS
+        env:
+          HOMEBREW_DEVELOPER: '1'
+        run: |
+          brew install --formula ./Formula/keeperd.rb
+          brew test ./Formula/keeperd.rb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: validated-formula
+          path: Formula/keeperd.rb
+          if-no-files-found: error
+          retention-days: 1
+
+  update:
+    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     concurrency:
       group: update-keeperd-formula
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify the release and update the Formula
-        id: formula
+      - uses: actions/download-artifact@v4
+        with:
+          name: validated-formula
+          path: Formula
+
+      - name: Push the validated Formula to a version branch
         env:
-          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: |
-          ./scripts/update-formula.sh "$VERSION"
           if git diff --quiet -- Formula/keeperd.rb; then
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-            echo "Formula is already at v$VERSION; no pull request is needed."
-          else
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
+            echo "Formula is already at v$VERSION; no branch update is needed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
 
-      - name: Open a Formula update pull request
-        if: steps.formula.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
-        run: |
           branch="formula/keeperd-v$VERSION"
+          remote_branch=$(git ls-remote --heads origin "refs/heads/$branch")
+          if [ -n "$remote_branch" ]; then
+            git fetch --no-tags origin "$branch"
+            if git diff --quiet HEAD FETCH_HEAD -- . ':(exclude)Formula/keeperd.rb' &&
+               git show FETCH_HEAD:Formula/keeperd.rb | cmp -s - Formula/keeperd.rb; then
+              echo "Validated Formula already exists on branch \`$branch\`." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "::error::Branch $branch already exists with different content; review it manually."
+            exit 1
+          fi
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch -c "$branch"
           git add Formula/keeperd.rb
           git commit -m "chore: Update KeepERD Formula to v$VERSION"
           git push origin "$branch"
-          gh pr create \
-            --base main \
-            --head "$branch" \
-            --title "Update KeepERD Formula to v$VERSION" \
-            --body "$(printf '%s\n' \
-              "- Update the Homebrew Formula to the published KeepERD v$VERSION release." \
-              '- Verify the downloaded archive against its published SHA-256 checksum before changing the Formula.' \
-              '- Require a separate review and merge; this workflow does not publish or merge the change.')"
+          echo "Validated Formula pushed to branch \`$branch\`. Review it before merging into main." >> "$GITHUB_STEP_SUMMARY"
