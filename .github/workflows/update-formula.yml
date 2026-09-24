@@ -1,0 +1,100 @@
+name: Update KeepERD Formula
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: KeepERD release version without the leading v (for example, 0.1.3)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the maintainer to start or re-run this workflow
+        env:
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          if [ "$ACTOR" != EunjinWoo ] || [ "$TRIGGERING_ACTOR" != EunjinWoo ]; then
+            echo '::error::Only EunjinWoo may run or re-run the Formula updater.'
+            exit 1
+          fi
+
+  validate:
+    needs: authorize
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the release and prepare the Formula
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: ./scripts/update-formula.sh "$VERSION"
+
+      - name: Install and test the Formula on macOS
+        env:
+          HOMEBREW_DEVELOPER: '1'
+        run: |
+          brew install --formula ./Formula/keeperd.rb
+          brew test ./Formula/keeperd.rb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: validated-formula
+          path: Formula/keeperd.rb
+          if-no-files-found: error
+          retention-days: 1
+
+  update:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: update-keeperd-formula
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: validated-formula
+          path: Formula
+
+      - name: Push the validated Formula to a version branch
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if git diff --quiet -- Formula/keeperd.rb; then
+            echo "Formula is already at v$VERSION; no branch update is needed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          branch="formula/keeperd-v$VERSION"
+          remote_branch=$(git ls-remote --heads origin "refs/heads/$branch")
+          if [ -n "$remote_branch" ]; then
+            git fetch --no-tags origin "$branch"
+            if git diff --quiet HEAD FETCH_HEAD -- . ':(exclude)Formula/keeperd.rb' &&
+               git show FETCH_HEAD:Formula/keeperd.rb | cmp -s - Formula/keeperd.rb; then
+              echo "Validated Formula already exists on branch \`$branch\`." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "::error::Branch $branch already exists with different content; review it manually."
+            exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git add Formula/keeperd.rb
+          git commit -m "chore: Update KeepERD Formula to v$VERSION"
+          git push origin "$branch"
+          echo "Validated Formula pushed to branch \`$branch\`. Review it before merging into main." >> "$GITHUB_STEP_SUMMARY"
