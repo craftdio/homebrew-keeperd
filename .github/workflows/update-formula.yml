@@ -19,9 +19,14 @@ jobs:
         env:
           ACTOR: ${{ github.actor }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          REF: ${{ github.ref }}
         run: |
           if [ "$ACTOR" != EunjinWoo ] || [ "$TRIGGERING_ACTOR" != EunjinWoo ]; then
             echo '::error::Only EunjinWoo may run or re-run the Formula updater.'
+            exit 1
+          fi
+          if [ "$REF" != refs/heads/main ]; then
+            echo '::error::Run the Formula updater from the main branch only.'
             exit 1
           fi
 
@@ -32,6 +37,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
       - name: Verify the release and prepare the Formula
         env:
@@ -63,6 +71,8 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - uses: actions/download-artifact@v4
         with:
