@@ -51,9 +51,17 @@ if [ "${EXPECTED_SHA}" != "${ACTUAL_SHA}" ]; then
   exit 1
 fi
 
-ruby - "${FORMULA}" "${URL}" "${ACTUAL_SHA}" > "${TEMP_DIR}/keeperd.rb" <<'RUBY'
-formula_path, url, sha256 = ARGV
+NODE_VERSION=$(tar -xOf "${TEMP_DIR}/${ARCHIVE}" "keeperd-v${VERSION}/package.json" |
+  ruby -rjson -e 'version = JSON.parse(STDIN.read).dig("engines", "node"); abort "Release must pin an exact Node version." unless version&.match?(/\A\d+\.\d+\.\d+\z/); puts version')
+
+ruby - "${FORMULA}" "${URL}" "${ACTUAL_SHA}" "${NODE_VERSION}" > "${TEMP_DIR}/keeperd.rb" <<'RUBY'
+formula_path, url, sha256, node_version = ARGV
 source = File.read(formula_path)
+
+runtime_versions = source.scan(%r{https://nodejs\.org/dist/v(\d+\.\d+\.\d+)/node-v})
+unless runtime_versions.length == 4 && runtime_versions.flatten.uniq == [node_version]
+  abort "Formula Node resources must match release Node #{node_version}; update and validate all platform resources first."
+end
 
 unless source.sub!(/^  url ".*"$/, "  url \"#{url}\"")
   abort "Could not update Formula URL."
