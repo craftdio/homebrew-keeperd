@@ -1,48 +1,99 @@
-# Homebrew Tap for KeepERD
+<p align="center">
+  <b>Install and update KeepERD with Homebrew.</b>
+</p>
 
-KeepERD is an independent, unofficial fork based on [ChartDB](https://github.com/chartdb/chartdb). It is not affiliated with or endorsed by ChartDB.
+<h5 align="center">
+  <a href="#install">Install</a> &bull;
+  <a href="#upgrade">Upgrade</a> &bull;
+  <a href="#troubleshooting">Troubleshooting</a> &bull;
+  <a href="https://github.com/craftdio/keeperd">KeepERD</a>
+</h5>
 
-This tap installs the prebuilt, immutable KeepERD runtime asset published by the [official KeepERD GitHub Release](https://github.com/craftdio/keeperd). Homebrew does not rebuild the frontend during installation. The formula installs the exact official Node.js 26.12.1 runtime privately with SHA-256-pinned resources for macOS/Linux on ARM64/x64. It does not replace or depend on the user's system Node. SQLite storage requires this exact runtime.
+---
+
+<h1 align="center">
+  <img src="./docs/assets/keeperd-banner.png" width="760" alt="KeepERD — dark banner with an icy-blue geometric symbol and off-white wordmark">
+</h1>
+
+<p align="center">
+  <b>Homebrew Tap for KeepERD</b><br>
+  Prebuilt app. Managed runtime. Simple upgrades.
+</p>
+
+<h3 align="center">
+  <a href="#install">Install</a> &bull;
+  <a href="#upgrade">Upgrade</a> &bull;
+  <a href="https://github.com/craftdio/keeperd/blob/main/tools/local-erd/README.md">Product Guide</a>
+</h3>
+
+<p align="center">
+  <a href="Formula/keeperd.rb"><img src="https://img.shields.io/badge/Install-Homebrew-91BEC9?logo=homebrew&amp;logoColor=white&amp;labelColor=161B22" alt="Install with Homebrew"></a>
+  <a href="Formula/keeperd.rb"><img src="https://img.shields.io/badge/Runtime-Node.js%2026.12.1-91BEC9?logo=nodedotjs&amp;logoColor=white&amp;labelColor=161B22" alt="Homebrew-managed Node.js 26.12.1 runtime"></a>
+  <a href="https://github.com/craftdio/keeperd/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-91BEC9?labelColor=161B22" alt="KeepERD is licensed under GNU AGPL v3"></a>
+</p>
+
+---
 
 ## Install
+
+With [Homebrew](https://brew.sh) available:
 
 ```sh
 brew tap craftdio/keeperd
 brew install keeperd
-```
-
-## Use
-
-```sh
 keeperd init
 keeperd start
 ```
 
-Docker is not installed by this Formula. Install and start Docker Desktop or another compatible Docker runtime separately when KeepERD needs to reproduce schemas with PostgreSQL.
+The formula installs the prebuilt app, Git, GitHub CLI, and a private **Node.js 26.12.1** runtime. No source checkout, npm install, or manual Node setup is needed. Your system Node is unchanged.
+
+Install and start Docker Desktop or another Docker-compatible runtime separately for schema replay. Open the address printed by `keeperd start`. See the [setup guide](https://github.com/craftdio/keeperd/blob/main/tools/local-erd/SETUP.md) for GitHub authentication and local repositories.
 
 ## Upgrade
 
 ```sh
 keeperd stop
 brew update
-brew upgrade craftdio/keeperd/keeperd
-keeperd --version
+brew upgrade keeperd
 keeperd start
 ```
 
-Keep the original browser address/port for the first upgraded visit so existing IndexedDB data can migrate automatically. Each original browser/profile must visit once; originals are preserved. The latest complete ERD is selected by its saved timestamp. See the [migration and recovery guide](https://github.com/craftdio/keeperd/blob/main/tools/local-erd/SQLITE.md).
+Check the installed version with `keeperd --version`. Your workspace remains in its data directory. When upgrading from browser storage, revisit the original address and port in each original browser or profile once. See [migration and recovery](https://github.com/craftdio/keeperd/blob/main/tools/local-erd/SQLITE.md).
 
-## Maintainers
+## Troubleshooting
 
-After publishing a KeepERD GitHub Release, run **Actions → Update KeepERD Formula → Run workflow** with `main` selected. Other branches are rejected. Enter the version without `v` (for example, `0.1.3`). The workflow checks the maintainer's GitHub identity, verifies the release archive against its published checksum, then installs and tests the updated Formula on macOS ARM64 and Intel. Pull requests run the same read-only validation for the maintainer; only manual runs publish a version branch. Validation and branch creation use the same `main` commit from the start of the run. Only after those checks pass does it commit the Formula to a `formula/keeperd-vX.Y.Z` branch. Review the branch and open a pull request manually before merging it into `main`.
+| Issue                        | What to check                                                                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Formula is not found         | Run `brew update` and confirm `brew tap craftdio/keeperd` succeeds.                                                                     |
+| `keeperd` is not found       | Confirm Homebrew is on your shell's `PATH` and check `brew list keeperd`.                                                               |
+| Runtime files are missing    | Stop KeepERD, then run `brew reinstall keeperd`.                                                                                        |
+| Docker is unavailable        | Start your Docker runtime and check `docker info`.                                                                                      |
+| Authentication or Sync fails | Follow the [application troubleshooting guide](https://github.com/craftdio/keeperd/blob/main/tools/local-erd/SETUP.md#troubleshooting). |
 
-Only `EunjinWoo` is authorized to start or re-run this workflow. In addition to the workflow's actor check, keep the repository Actions execution policy scoped to `.github/workflows/update-formula.yml` with `EunjinWoo` as its sole allowed actor. The repository's default `GITHUB_TOKEN` permissions remain read-only; only the final branch-update job requests write access. GitHub Actions does not need permission to create or approve pull requests.
+Report installation or formula problems in [this tap's issues](https://github.com/craftdio/homebrew-keeperd/issues). Report app behavior in [KeepERD Issues](https://github.com/craftdio/keeperd/issues).
 
-To update the Formula locally instead:
+<a id="maintainers"></a>
+
+<details>
+<summary>Maintainers: update the formula</summary>
+
+After publishing a [KeepERD release](https://github.com/craftdio/keeperd/releases), run **Actions → Update KeepERD Formula → Run workflow** on `main`, using a version without `v`. Only `EunjinWoo` may start or re-run it.
+
+The workflow verifies the release checksum and exact runtime, then tests installation on macOS ARM64 and Intel. A manual run creates a `formula/keeperd-vX.Y.Z` branch only after validation passes. Review that branch and open a pull request before merging the formula update. Pull-request runs perform validation without publishing a branch.
+
+For a local update:
 
 ```sh
 ./scripts/update-formula.sh X.Y.Z
 ruby -c Formula/keeperd.rb
 ```
 
-The updater also reads the exact Node engine from the verified release archive and rejects a formula whose four runtime resources use another version. A Node upgrade requires explicitly updating all resource URLs/checksums and rerunning the installation and SQLite persistence tests.
+Keep the Actions execution policy scoped to `.github/workflows/update-formula.yml` with `EunjinWoo` as the sole allowed actor. Default token permissions remain read-only; only the final branch-update job requests write access. Actions does not need pull-request creation or approval permissions.
+
+A Node upgrade requires updating all four checksum-pinned runtime resources and rerunning installation, runtime, and SQLite persistence checks. The release archive itself does not include Node.
+
+</details>
+
+---
+
+KeepERD is an independent, unofficial fork of [ChartDB](https://github.com/chartdb/chartdb), with no affiliation or endorsement. See the product's [LICENSE](https://github.com/craftdio/keeperd/blob/main/LICENSE) and [NOTICE](https://github.com/craftdio/keeperd/blob/main/NOTICE).
